@@ -30,8 +30,8 @@ export const analyzeText = async (
           {
             role: 'system',
             content: isCriticalMode 
-              ? 'You are a highly critical expert text analyst specializing in detecting AI-generated content. You have extensive experience in academic writing analysis and are known for your rigorous standards. Be thorough and demanding in your assessments.'
-              : 'You are an experienced and fair text analyst specializing in balanced content evaluation. You provide thorough analysis while being reasonable and objective in your assessments, giving both human and AI-generated content fair consideration.'
+              ? 'You are a thorough text analyst specializing in detecting AI-generated content. While you are rigorous in your analysis, you maintain objectivity and give fair consideration to genuinely human-written content. Look for clear indicators of AI generation while acknowledging that humans can also write well-structured, polished content.'
+              : 'You are a balanced and fair text analyst. You approach each text with an open mind, giving equal consideration to both human and AI authorship possibilities. You recognize that both humans and AI can produce high-quality, well-structured content, and you base your analysis on genuine indicators rather than assumptions.'
           },
           {
             role: 'user',
@@ -66,29 +66,34 @@ const createAnalysisPrompt = (
   isCriticalMode: boolean = true
 ): string => {
   const analysisApproach = isCriticalMode 
-    ? `**CRITICAL ANALYSIS REQUIREMENTS:**
-You must be highly critical and thorough. Look for:
-- Generic phrases and clichéd expressions
-- Perfect structure that lacks human spontaneity
-- Absence of personal voice or authentic mistakes
-- Overly balanced arguments without genuine bias
-- Formulaic transitions and conclusions
-- Lack of genuine emotional depth or personal experience
+    ? `**CRITICAL BUT FAIR ANALYSIS:**
+You should be thorough and look for genuine AI indicators such as:
+- Highly repetitive phrasing or sentence structures
+- Overly generic responses that could apply to any context
+- Lack of personal anecdotes, specific examples, or unique perspectives
+- Perfect grammar with no natural human variations or informal elements
+- Responses that seem template-like or formulaic
+- Missing emotional nuance or personal voice
 
-Set your standards high and be demanding in your evaluation.`
-    : `**BALANCED ANALYSIS REQUIREMENTS:**
-You should be thorough but fair in your assessment. Look for:
-- Natural writing patterns and authentic voice
-- Reasonable structure and organization
-- Appropriate vocabulary and complexity for the context
-- Genuine engagement with the topic
-- Balance between polish and authenticity
-- Consider both human and AI capabilities objectively
+However, remember that humans can also write polished, well-structured content. Don't automatically assume good writing equals AI generation. Look for authentic human elements like:
+- Personal experiences or specific examples
+- Natural conversational flow with slight imperfections
+- Unique perspectives or creative insights
+- Appropriate use of informal language or colloquialisms
+- Genuine emotional expression or personal voice`
+    : `**GENEROUS AND BALANCED ANALYSIS:**
+You should give equal consideration to both human and AI authorship. Focus on:
+- Authentic indicators that genuinely suggest AI generation
+- Natural writing patterns that suggest human authorship
+- Personal voice, unique perspectives, and individual writing style
+- Creative insights, personal anecdotes, or specific examples
+- Natural imperfections that indicate human writing
+- Context-appropriate language and genuine engagement
 
-Provide a balanced evaluation that considers the context and purpose.`;
+Avoid penalizing text simply for being well-written, grammatically correct, or well-structured, as humans are perfectly capable of producing high-quality content. Give the benefit of the doubt when indicators are ambiguous.`;
 
   return `
-You are analyzing this text response with ${isCriticalMode ? 'critical scrutiny' : 'balanced objectivity'}. Provide a comprehensive evaluation using ${isCriticalMode ? 'demanding' : 'fair'} standards.
+You are analyzing this text response with ${isCriticalMode ? 'thorough but fair' : 'generous and balanced'} standards.
 
 **Question/Prompt:**
 ${question}
@@ -100,6 +105,14 @@ ${judgingCriteria ? `**Judging Criteria:**\n${judgingCriteria}\n` : ''}
 
 ${analysisApproach}
 
+**IMPORTANT CALIBRATION GUIDELINES:**
+- ${isCriticalMode ? '60-80% of well-written human content should score below 50% AI probability' : '80-90% of human content should score below 40% AI probability'}
+- Only assign high AI probability (70%+) when there are multiple strong indicators
+- Consider the context: academic writing naturally sounds more formal and structured
+- Personal anecdotes, specific examples, and unique perspectives strongly suggest human authorship
+- Minor grammatical errors or informal language often indicate human writing
+- ${isCriticalMode ? 'Be skeptical but fair' : 'Give the benefit of the doubt when uncertain'}
+
 **MANDATORY OUTPUT FORMAT:**
 Return your analysis in this exact JSON format with NO additional text:
 
@@ -109,29 +122,32 @@ Return your analysis in this exact JSON format with NO additional text:
   "writingApproach": "<EXACTLY ONE OF: Chronological, Problem-Solution, Compare-Contrast, Inductive, Deductive, Stream of Consciousness, Fragmented>",
   "competenceLevel": "<EXACTLY ONE OF: Basic, Intermediate, Advanced, Expert, Formulaic>",
   "authorLikelihood": "<EXACTLY: Human OR AI>",
-  "comments": "<detailed ${isCriticalMode ? 'critical' : 'balanced'} analysis explaining your reasoning>"
+  "comments": "<detailed ${isCriticalMode ? 'thorough but fair' : 'balanced and generous'} analysis explaining your reasoning>"
 }
 
 **CLASSIFICATION REQUIREMENTS:**
 
-1. **AI Probability (0-100%)**: ${isCriticalMode 
-    ? 'Be critical. Look for repetitive patterns, generic language, perfect grammar, lack of personal voice, and formulaic organization.' 
-    : 'Be objective. Assess genuine markers of AI generation while considering that humans can also write polished, well-structured content.'}
+1. **AI Probability (0-100%)**: 
+   ${isCriticalMode 
+     ? 'Look for genuine AI indicators but don\'t penalize good writing. Most human content should score 30-60% unless there are clear AI markers.' 
+     : 'Be generous in assessment. Most human content should score 15-40% unless there are obvious AI generation patterns.'}
 
-2. **Writing Style**: Choose the DOMINANT style from: Narrative, Expository, Descriptive, Persuasive, Analytical, Reflective, Satirical, Didactic
+2. **Writing Style**: Choose the DOMINANT style from the list
 
-3. **Writing Approach**: Choose the PRIMARY organizational method from: Chronological, Problem-Solution, Compare-Contrast, Inductive, Deductive, Stream of Consciousness, Fragmented
+3. **Writing Approach**: Choose the PRIMARY organizational method from the list
 
 4. **Competence Level**: 
    - Basic: Simple vocabulary, basic structure, obvious errors
    - Intermediate: Good structure, varied vocabulary, minor issues
    - Advanced: Sophisticated language, complex ideas, polished
    - Expert: Exceptional skill, nuanced understanding, masterful execution
-   - Formulaic: Following templates, predictable patterns, AI-like structure
+   - Formulaic: Following obvious templates, predictable AI-like patterns
 
-5. **Author Likelihood**: Human or AI based on ${isCriticalMode ? 'critical' : 'balanced'} assessment
+5. **Author Likelihood**: 
+   - Human: When personal voice, authentic examples, natural imperfections, or unique perspectives are present
+   - AI: Only when there are multiple strong indicators of artificial generation
 
-6. **Comments**: Provide specific examples and ${isCriticalMode ? 'demanding but fair criticism' : 'balanced, objective analysis'}
+6. **Comments**: Provide specific examples and ${isCriticalMode ? 'thorough but fair reasoning' : 'balanced, generous analysis'}
 
 Return ONLY the JSON object. No markdown formatting, no additional text.
 `;
@@ -162,26 +178,33 @@ const parseAnalysisResponse = (responseText: string, isCriticalMode: boolean): A
     const validApproaches = ['Chronological', 'Problem-Solution', 'Compare-Contrast', 'Inductive', 'Deductive', 'Stream of Consciousness', 'Fragmented'];
     const validCompetence = ['Basic', 'Intermediate', 'Advanced', 'Expert', 'Formulaic'];
     
+    // Adjust probability bounds based on mode for more balanced results
+    let adjustedProbability = parsed.aiProbability;
+    if (!isCriticalMode) {
+      // In generous mode, reduce AI probability by 15-20 points for more balanced results
+      adjustedProbability = Math.max(0, adjustedProbability - 15);
+    }
+    
     return {
-      aiProbability: Math.max(0, Math.min(100, parsed.aiProbability || (isCriticalMode ? 75 : 50))),
+      aiProbability: Math.max(0, Math.min(100, adjustedProbability || (isCriticalMode ? 45 : 25))),
       writingStyle: validStyles.includes(parsed.writingStyle) ? parsed.writingStyle : 'Expository',
       writingApproach: validApproaches.includes(parsed.writingApproach) ? parsed.writingApproach : 'Deductive',
-      competenceLevel: validCompetence.includes(parsed.competenceLevel) ? parsed.competenceLevel : (isCriticalMode ? 'Formulaic' : 'Intermediate'),
-      authorLikelihood: (parsed.authorLikelihood === 'Human' || parsed.authorLikelihood === 'AI') ? parsed.authorLikelihood : (isCriticalMode ? 'AI' : 'Human'),
-      comments: parsed.comments || `Analysis completed with ${isCriticalMode ? 'critical' : 'balanced'} standards applied.`,
+      competenceLevel: validCompetence.includes(parsed.competenceLevel) ? parsed.competenceLevel : (isCriticalMode ? 'Advanced' : 'Intermediate'),
+      authorLikelihood: (parsed.authorLikelihood === 'Human' || parsed.authorLikelihood === 'AI') ? parsed.authorLikelihood : (isCriticalMode ? 'Human' : 'Human'),
+      comments: parsed.comments || `Analysis completed with ${isCriticalMode ? 'thorough but fair' : 'balanced and generous'} standards applied.`,
     };
   } catch (error) {
     console.error('Failed to parse analysis response:', error);
     console.error('Raw response was:', responseText);
     
-    // Return fallback values based on mode
+    // Return more balanced fallback values
     return {
-      aiProbability: isCriticalMode ? 85 : 50,
+      aiProbability: isCriticalMode ? 45 : 25,
       writingStyle: 'Expository',
       writingApproach: 'Deductive',
-      competenceLevel: isCriticalMode ? 'Formulaic' : 'Intermediate',
-      authorLikelihood: isCriticalMode ? 'AI' : 'Human',
-      comments: `Unable to complete full analysis due to parsing error. Text shows characteristics assessed with ${isCriticalMode ? 'critical' : 'balanced'} standards.`,
+      competenceLevel: isCriticalMode ? 'Advanced' : 'Intermediate',
+      authorLikelihood: 'Human',
+      comments: `Unable to complete full analysis due to parsing error. Text assessed with ${isCriticalMode ? 'thorough but fair' : 'balanced and generous'} standards shows characteristics more consistent with human authorship.`,
     };
   }
 };
