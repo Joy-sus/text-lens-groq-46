@@ -1,8 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AnalysisInput from './AnalysisInput';
 import AnalysisResults from './AnalysisResults';
+import HistoryTab from './HistoryTab';
 import { analyzeText } from '@/utils/textAnalysis';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface AnalysisResult {
   aiProbability: number;
@@ -13,6 +17,16 @@ interface AnalysisResult {
   comments: string;
 }
 
+interface HistoryEntry {
+  id: string;
+  timestamp: number;
+  question: string;
+  answerText: string;
+  judgingCriteria: string;
+  isCriticalMode: boolean;
+  results: AnalysisResult;
+}
+
 const TextEvaluator = () => {
   const [question, setQuestion] = useState('');
   const [answerText, setAnswerText] = useState('');
@@ -20,6 +34,36 @@ const TextEvaluator = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isCriticalMode, setIsCriticalMode] = useState(true);
+  const [history, setHistory] = useState<HistoryEntry[]>([]);
+
+  useEffect(() => {
+    // Load history from localStorage
+    const savedHistory = localStorage.getItem('text-analysis-history');
+    if (savedHistory) {
+      try {
+        setHistory(JSON.parse(savedHistory));
+      } catch (error) {
+        console.error('Failed to load history:', error);
+      }
+    }
+  }, []);
+
+  const saveToHistory = (analysisResults: AnalysisResult) => {
+    const historyEntry: HistoryEntry = {
+      id: Date.now().toString(),
+      timestamp: Date.now(),
+      question,
+      answerText,
+      judgingCriteria,
+      isCriticalMode,
+      results: analysisResults,
+    };
+
+    const newHistory = [historyEntry, ...history].slice(0, 50); // Keep only latest 50 entries
+    setHistory(newHistory);
+    localStorage.setItem('text-analysis-history', JSON.stringify(newHistory));
+  };
 
   const handleAnalyze = async () => {
     if (!question.trim() || !answerText.trim()) {
@@ -32,14 +76,23 @@ const TextEvaluator = () => {
     setResults(null);
 
     try {
-      const analysis = await analyzeText(question, answerText, judgingCriteria);
+      const analysis = await analyzeText(question, answerText, judgingCriteria, isCriticalMode);
       setResults(analysis);
+      saveToHistory(analysis);
     } catch (err) {
       setError('Failed to analyze text. Please try again.');
       console.error('Analysis error:', err);
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const loadFromHistory = (entry: HistoryEntry) => {
+    setQuestion(entry.question);
+    setAnswerText(entry.answerText);
+    setJudgingCriteria(entry.judgingCriteria);
+    setIsCriticalMode(entry.isCriticalMode);
+    setResults(entry.results);
   };
 
   return (
@@ -76,24 +129,68 @@ const TextEvaluator = () => {
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-8 max-w-7xl mx-auto">
-          <AnalysisInput
-            question={question}
-            answerText={answerText}
-            judgingCriteria={judgingCriteria}
-            isAnalyzing={isAnalyzing}
-            error={error}
-            onQuestionChange={setQuestion}
-            onAnswerChange={setAnswerText}
-            onCriteriaChange={setJudgingCriteria}
-            onAnalyze={handleAnalyze}
-          />
+        <Tabs defaultValue="analyzer" className="max-w-7xl mx-auto">
+          <TabsList className="grid w-full grid-cols-2 mb-8">
+            <TabsTrigger value="analyzer">Text Analyzer</TabsTrigger>
+            <TabsTrigger value="history">Analysis History</TabsTrigger>
+          </TabsList>
 
-          <AnalysisResults
-            results={results}
-            isAnalyzing={isAnalyzing}
-          />
-        </div>
+          <TabsContent value="analyzer" className="space-y-6">
+            {/* Critical/Generous Toggle */}
+            <div className="flex justify-center mb-6">
+              <div className="flex items-center space-x-4 bg-white/60 rounded-xl p-4 border border-slate-200 backdrop-blur-sm">
+                <Label htmlFor="detection-mode" className="text-sm font-semibold text-slate-700">
+                  Detection Mode:
+                </Label>
+                <div className="flex items-center space-x-3">
+                  <span className={`text-sm font-medium ${!isCriticalMode ? 'text-emerald-600' : 'text-slate-500'}`}>
+                    Generous
+                  </span>
+                  <Switch
+                    id="detection-mode"
+                    checked={isCriticalMode}
+                    onCheckedChange={setIsCriticalMode}
+                    className="data-[state=checked]:bg-red-500"
+                  />
+                  <span className={`text-sm font-medium ${isCriticalMode ? 'text-red-600' : 'text-slate-500'}`}>
+                    Critical
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid lg:grid-cols-2 gap-8">
+              <AnalysisInput
+                question={question}
+                answerText={answerText}
+                judgingCriteria={judgingCriteria}
+                isAnalyzing={isAnalyzing}
+                error={error}
+                isCriticalMode={isCriticalMode}
+                onQuestionChange={setQuestion}
+                onAnswerChange={setAnswerText}
+                onCriteriaChange={setJudgingCriteria}
+                onAnalyze={handleAnalyze}
+              />
+
+              <AnalysisResults
+                results={results}
+                isAnalyzing={isAnalyzing}
+              />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="history">
+            <HistoryTab 
+              history={history} 
+              onLoadEntry={loadFromHistory}
+              onClearHistory={() => {
+                setHistory([]);
+                localStorage.removeItem('text-analysis-history');
+              }}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

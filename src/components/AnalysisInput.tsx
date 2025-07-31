@@ -1,11 +1,13 @@
 
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, FileText, MessageSquare, Brain, Target, Zap } from 'lucide-react';
+import { Loader2, FileText, MessageSquare, Brain, Target, Zap, Image, Upload } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import { performOCR } from '@/utils/ocrService';
 
 interface AnalysisInputProps {
   question: string;
@@ -13,6 +15,7 @@ interface AnalysisInputProps {
   judgingCriteria: string;
   isAnalyzing: boolean;
   error: string | null;
+  isCriticalMode: boolean;
   onQuestionChange: (value: string) => void;
   onAnswerChange: (value: string) => void;
   onCriteriaChange: (value: string) => void;
@@ -25,11 +28,56 @@ const AnalysisInput: React.FC<AnalysisInputProps> = ({
   judgingCriteria,
   isAnalyzing,
   error,
+  isCriticalMode,
   onQuestionChange,
   onAnswerChange,
   onCriteriaChange,
   onAnalyze,
 }) => {
+  const [isProcessingOCR, setIsProcessingOCR] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select an image file.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessingOCR(true);
+    try {
+      const extractedText = await performOCR(file);
+      onAnswerChange(extractedText);
+      toast({
+        title: "OCR completed",
+        description: "Text has been extracted from the image successfully.",
+      });
+    } catch (error) {
+      console.error('OCR error:', error);
+      toast({
+        title: "OCR failed",
+        description: "Failed to extract text from the image. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessingOCR(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const triggerImageUpload = () => {
+    fileInputRef.current?.click();
+  };
+
   return (
     <Card className="h-fit shadow-xl border-0 bg-gradient-to-br from-slate-50 to-blue-50/30 backdrop-blur-sm">
       <CardHeader className="pb-4">
@@ -40,7 +88,7 @@ const AnalysisInput: React.FC<AnalysisInputProps> = ({
           Text Analysis Input
         </CardTitle>
         <p className="text-sm text-slate-600 mt-2">
-          Provide the content for rigorous academic analysis using advanced AI detection models
+          Provide the content for {isCriticalMode ? 'rigorous critical' : 'fair and balanced'} academic analysis
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -54,7 +102,7 @@ const AnalysisInput: React.FC<AnalysisInputProps> = ({
             placeholder="Enter the original question, assignment prompt, or context that generated the response..."
             value={question}
             onChange={(e) => onQuestionChange(e.target.value)}
-            className="min-h-[110px] resize-none border-slate-200 bg-white/70 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200"
+            className="min-h-[110px] max-h-[200px] resize-none border-slate-200 bg-white/70 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200 overflow-y-auto"
           />
         </div>
 
@@ -62,18 +110,40 @@ const AnalysisInput: React.FC<AnalysisInputProps> = ({
           <Label htmlFor="answer" className="text-sm font-semibold flex items-center gap-2 text-slate-700">
             <Brain className="h-4 w-4 text-indigo-600" />
             Response Text to Analyze <span className="text-red-500">*</span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={triggerImageUpload}
+              disabled={isProcessingOCR}
+              className="ml-auto h-6 px-2 text-xs bg-white/70 hover:bg-white/90"
+            >
+              {isProcessingOCR ? (
+                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+              ) : (
+                <Image className="h-3 w-3 mr-1" />
+              )}
+              {isProcessingOCR ? 'Processing...' : 'Extract from Image'}
+            </Button>
           </Label>
           <Textarea
             id="answer"
             placeholder="Paste the text response that you want to analyze for AI probability and writing characteristics..."
             value={answerText}
             onChange={(e) => onAnswerChange(e.target.value)}
-            className="min-h-[220px] resize-none border-slate-200 bg-white/70 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200"
+            className="min-h-[220px] max-h-[400px] resize-none border-slate-200 bg-white/70 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200 overflow-y-auto"
           />
           <div className="flex justify-between text-xs text-slate-500">
             <span>{answerText.length} characters</span>
             <span>{answerText.split(/\s+/).filter(word => word.length > 0).length} words</span>
           </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="hidden"
+          />
         </div>
 
         <div className="space-y-3">
@@ -81,12 +151,12 @@ const AnalysisInput: React.FC<AnalysisInputProps> = ({
             <Target className="h-4 w-4 text-purple-600" />
             Evaluation Criteria <span className="text-slate-400">(Optional)</span>
           </Label>
-          <Input
+          <Textarea
             id="criteria"
             placeholder="e.g., Academic rigor, Creative expression, Technical accuracy, Argumentative strength..."
             value={judgingCriteria}
             onChange={(e) => onCriteriaChange(e.target.value)}
-            className="border-slate-200 bg-white/70 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200"
+            className="min-h-[80px] max-h-[150px] border-slate-200 bg-white/70 focus:border-blue-500 focus:ring-blue-500/20 transition-all duration-200 resize-none overflow-y-auto"
           />
         </div>
 
@@ -104,12 +174,12 @@ const AnalysisInput: React.FC<AnalysisInputProps> = ({
           {isAnalyzing ? (
             <>
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Analyzing with Critical Standards...
+              Analyzing with {isCriticalMode ? 'Critical' : 'Generous'} Standards...
             </>
           ) : (
             <>
               <Zap className="mr-2 h-5 w-5" />
-              Perform Critical Analysis
+              Perform {isCriticalMode ? 'Critical' : 'Generous'} Analysis
             </>
           )}
         </Button>
