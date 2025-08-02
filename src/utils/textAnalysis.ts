@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 
 const GROQ_API_KEY = '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';
@@ -29,8 +30,8 @@ export const analyzeText = async (
           {
             role: 'system',
             content: isCriticalMode 
-              ? 'You are an expert academic evaluator and AI detection specialist. You have extensive experience in distinguishing between human and AI writing patterns in academic contexts. You evaluate student work based on question relevance, depth of understanding, originality of thought, and writing authenticity. You are thorough but fair in your assessments.'
-              : 'You are a balanced academic evaluator with expertise in both human and AI writing assessment. You approach each text objectively, focusing on content quality, question relevance, and genuine academic merit. You recognize that students have varying writing abilities and give appropriate consideration to effort and understanding.'
+              ? 'You are a highly critical expert text analyst specializing in detecting AI-generated content. You have extensive experience in academic writing analysis and are known for your rigorous standards. Be thorough and demanding in your assessments.'
+              : 'You are an experienced and fair text analyst specializing in balanced content evaluation. You provide thorough analysis while being reasonable and objective in your assessments, giving both human and AI-generated content fair consideration.'
           },
           {
             role: 'user',
@@ -65,82 +66,39 @@ const createAnalysisPrompt = (
   isCriticalMode: boolean = true
 ): string => {
   const analysisApproach = isCriticalMode 
-    ? `**CRITICAL ACADEMIC EVALUATION MODE:**
-You should thoroughly evaluate both AI detection AND academic quality:
+    ? `**CRITICAL ANALYSIS REQUIREMENTS:**
+You must be highly critical and thorough. Look for:
+- Generic phrases and clichéd expressions
+- Perfect structure that lacks human spontaneity
+- Absence of personal voice or authentic mistakes
+- Overly balanced arguments without genuine bias
+- Formulaic transitions and conclusions
+- Lack of genuine emotional depth or personal experience
 
-**AI Detection Criteria:**
-- Look for AI patterns: repetitive phrasing, formulaic structures, generic responses
-- Check for human indicators: personal voice, specific examples, natural imperfections
-- Assess originality vs template-like responses
-- Consider context-appropriate language and genuine understanding
+Set your standards high and be demanding in your evaluation.`
+    : `**BALANCED ANALYSIS REQUIREMENTS:**
+You should be thorough but fair in your assessment. Look for:
+- Natural writing patterns and authentic voice
+- Reasonable structure and organization
+- Appropriate vocabulary and complexity for the context
+- Genuine engagement with the topic
+- Balance between polish and authenticity
+- Consider both human and AI capabilities objectively
 
-**Academic Quality Assessment:**
-- **Question Relevance**: Does the response directly address what was asked?
-- **Depth of Understanding**: Shows genuine comprehension vs superficial treatment
-- **Critical Thinking**: Evidence of analysis, evaluation, or synthesis
-- **Use of Examples**: Specific, relevant examples vs generic illustrations
-- **Academic Voice**: Appropriate tone and scholarly approach
-- **Organization**: Logical flow and structure appropriate for the question type
-
-**Quality Indicators:**
-- Good: Demonstrates understanding, addresses question, shows original thinking
-- Poor: Off-topic, superficial, lacks engagement with the question, purely generic`
-    : `**BALANCED ACADEMIC EVALUATION MODE:**
-You should provide fair assessment focusing on:
-
-**Primary Focus - Academic Merit:**
-- How well does the response answer the specific question asked?
-- Does it show genuine understanding of the topic?
-- Is there evidence of personal engagement with the material?
-- Are examples and explanations appropriate and relevant?
-
-**Secondary Focus - Authenticity:**
-- Clear AI indicators: obvious templates, repetitive patterns, generic phrasing
-- Human indicators: personal insights, specific examples, natural voice
-- Give benefit of doubt when writing quality could reflect student ability
-
-**Evaluation Standards:**
-- Recognize that good student writing can be well-structured and polished
-- Focus on substance over style unless style clearly indicates AI generation
-- Consider question complexity when evaluating response depth`;
+Provide a balanced evaluation that considers the context and purpose.`;
 
   return `
-You are evaluating a student's written response with ${isCriticalMode ? 'rigorous academic standards' : 'balanced academic assessment'}.
+You are analyzing this text response with ${isCriticalMode ? 'critical scrutiny' : 'balanced objectivity'}. Provide a comprehensive evaluation using ${isCriticalMode ? 'demanding' : 'fair'} standards.
 
-**QUESTION/ASSIGNMENT:**
+**Question/Prompt:**
 ${question}
 
-**STUDENT RESPONSE:**
+**Answer Text to Analyze:**
 ${answerText}
 
-${judgingCriteria ? `**GRADING CRITERIA:**\n${judgingCriteria}\n` : ''}
+${judgingCriteria ? `**Judging Criteria:**\n${judgingCriteria}\n` : ''}
 
 ${analysisApproach}
-
-**EVALUATION FRAMEWORK:**
-
-1. **Content Quality Assessment:**
-   - Does the response directly address the question asked?
-   - Is there evidence of genuine understanding vs mere information regurgitation?
-   - Are arguments well-supported with appropriate examples?
-   - Does it show critical thinking and original analysis?
-
-2. **Academic Writing Evaluation:**
-   - Is the writing style appropriate for the academic level?
-   - Is the organization logical and coherent?
-   - Does it demonstrate subject knowledge and vocabulary?
-   - Are sources or examples used effectively?
-
-3. **Authenticity Indicators:**
-   - Human: Personal insights, specific examples, natural voice variations, contextual understanding
-   - AI: Generic responses, formulaic patterns, template-like structure, lack of personal engagement
-
-**CALIBRATION GUIDELINES:**
-- ${isCriticalMode ? 'Balance AI detection with academic merit - a poor response is not necessarily AI-generated' : 'Prioritize academic quality assessment - focus on learning demonstration'}
-- Consider question complexity when evaluating response depth
-- ${isCriticalMode ? 'Most genuine student work should score 25-65% AI probability depending on quality' : 'Most authentic student work should score 15-45% AI probability'}
-- High-quality human responses with good structure should not automatically indicate AI generation
-- Poor responses may still be human if they show genuine effort and understanding
 
 **MANDATORY OUTPUT FORMAT:**
 Return your analysis in this exact JSON format with NO additional text:
@@ -151,23 +109,29 @@ Return your analysis in this exact JSON format with NO additional text:
   "writingApproach": "<EXACTLY ONE OF: Chronological, Problem-Solution, Compare-Contrast, Inductive, Deductive, Stream of Consciousness, Fragmented>",
   "competenceLevel": "<EXACTLY ONE OF: Basic, Intermediate, Advanced, Expert, Formulaic>",
   "authorLikelihood": "<EXACTLY: Human OR AI>",
-  "comments": "<detailed analysis covering: 1) How well the response addresses the question, 2) Academic quality and depth, 3) Evidence for AI vs human authorship, 4) Overall assessment of student work quality>"
+  "comments": "<detailed ${isCriticalMode ? 'critical' : 'balanced'} analysis explaining your reasoning>"
 }
 
-**DETAILED REQUIREMENTS:**
+**CLASSIFICATION REQUIREMENTS:**
 
-1. **AI Probability (0-100%)**: 
-   Base on combination of AI detection indicators AND academic authenticity
-   - Consider both writing patterns and genuine engagement with the question
-   - ${isCriticalMode ? 'Score 25-65% for most authentic student work' : 'Score 15-45% for most genuine responses'}
+1. **AI Probability (0-100%)**: ${isCriticalMode 
+    ? 'Be critical. Look for repetitive patterns, generic language, perfect grammar, lack of personal voice, and formulaic organization.' 
+    : 'Be objective. Assess genuine markers of AI generation while considering that humans can also write polished, well-structured content.'}
 
-2. **Comments Structure**: Must address:
-   - Question relevance and how well the response answers what was asked
-   - Academic quality: depth, understanding, examples, critical thinking
-   - Authenticity indicators: human vs AI characteristics observed
-   - Overall evaluation of the student work (good/poor and why)
+2. **Writing Style**: Choose the DOMINANT style from: Narrative, Expository, Descriptive, Persuasive, Analytical, Reflective, Satirical, Didactic
 
-3. **Academic Context**: Remember this is student work - evaluate appropriately for educational setting
+3. **Writing Approach**: Choose the PRIMARY organizational method from: Chronological, Problem-Solution, Compare-Contrast, Inductive, Deductive, Stream of Consciousness, Fragmented
+
+4. **Competence Level**: 
+   - Basic: Simple vocabulary, basic structure, obvious errors
+   - Intermediate: Good structure, varied vocabulary, minor issues
+   - Advanced: Sophisticated language, complex ideas, polished
+   - Expert: Exceptional skill, nuanced understanding, masterful execution
+   - Formulaic: Following templates, predictable patterns, AI-like structure
+
+5. **Author Likelihood**: Human or AI based on ${isCriticalMode ? 'critical' : 'balanced'} assessment
+
+6. **Comments**: Provide specific examples and ${isCriticalMode ? 'demanding but fair criticism' : 'balanced, objective analysis'}
 
 Return ONLY the JSON object. No markdown formatting, no additional text.
 `;
@@ -198,33 +162,26 @@ const parseAnalysisResponse = (responseText: string, isCriticalMode: boolean): A
     const validApproaches = ['Chronological', 'Problem-Solution', 'Compare-Contrast', 'Inductive', 'Deductive', 'Stream of Consciousness', 'Fragmented'];
     const validCompetence = ['Basic', 'Intermediate', 'Advanced', 'Expert', 'Formulaic'];
     
-    // More balanced probability adjustment
-    let adjustedProbability = parsed.aiProbability;
-    if (!isCriticalMode) {
-      // In balanced mode, reduce AI probability slightly for more generous assessment
-      adjustedProbability = Math.max(0, adjustedProbability - 10);
-    }
-    
     return {
-      aiProbability: Math.max(0, Math.min(100, adjustedProbability || (isCriticalMode ? 50 : 35))),
+      aiProbability: Math.max(0, Math.min(100, parsed.aiProbability || (isCriticalMode ? 75 : 50))),
       writingStyle: validStyles.includes(parsed.writingStyle) ? parsed.writingStyle : 'Expository',
       writingApproach: validApproaches.includes(parsed.writingApproach) ? parsed.writingApproach : 'Deductive',
-      competenceLevel: validCompetence.includes(parsed.competenceLevel) ? parsed.competenceLevel : 'Intermediate',
-      authorLikelihood: (parsed.authorLikelihood === 'Human' || parsed.authorLikelihood === 'AI') ? parsed.authorLikelihood : (adjustedProbability >= 60 ? 'AI' : 'Human'),
+      competenceLevel: validCompetence.includes(parsed.competenceLevel) ? parsed.competenceLevel : (isCriticalMode ? 'Formulaic' : 'Intermediate'),
+      authorLikelihood: (parsed.authorLikelihood === 'Human' || parsed.authorLikelihood === 'AI') ? parsed.authorLikelihood : (isCriticalMode ? 'AI' : 'Human'),
       comments: parsed.comments || `Analysis completed with ${isCriticalMode ? 'critical' : 'balanced'} standards applied.`,
     };
   } catch (error) {
     console.error('Failed to parse analysis response:', error);
     console.error('Raw response was:', responseText);
     
-    // More balanced fallback values
+    // Return fallback values based on mode
     return {
-      aiProbability: isCriticalMode ? 50 : 35,
+      aiProbability: isCriticalMode ? 85 : 50,
       writingStyle: 'Expository',
       writingApproach: 'Deductive',
-      competenceLevel: 'Intermediate',
-      authorLikelihood: 'Human',
-      comments: `Unable to complete full analysis due to parsing error. Based on available context, content shows mixed indicators requiring human review.`,
+      competenceLevel: isCriticalMode ? 'Formulaic' : 'Intermediate',
+      authorLikelihood: isCriticalMode ? 'AI' : 'Human',
+      comments: `Unable to complete full analysis due to parsing error. Text shows characteristics assessed with ${isCriticalMode ? 'critical' : 'balanced'} standards.`,
     };
   }
 };
