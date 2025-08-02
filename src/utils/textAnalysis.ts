@@ -29,8 +29,8 @@ export const analyzeText = async (
           {
             role: 'system',
             content: isCriticalMode 
-              ? 'You are an expert text analyst specializing in detecting AI-generated content with high accuracy. You are thorough and analytical, looking for genuine indicators of AI generation while maintaining fairness. You have extensive experience distinguishing between human and AI writing patterns.'
-              : 'You are a balanced text analyst with expertise in both human and AI writing patterns. You approach each text objectively, looking for clear evidence before making determinations. You recognize that both humans and AI can produce various quality levels of content.'
+              ? 'You are an expert academic evaluator and AI detection specialist. You have extensive experience in distinguishing between human and AI writing patterns in academic contexts. You evaluate student work based on question relevance, depth of understanding, originality of thought, and writing authenticity. You are thorough but fair in your assessments.'
+              : 'You are a balanced academic evaluator with expertise in both human and AI writing assessment. You approach each text objectively, focusing on content quality, question relevance, and genuine academic merit. You recognize that students have varying writing abilities and give appropriate consideration to effort and understanding.'
           },
           {
             role: 'user',
@@ -65,50 +65,82 @@ const createAnalysisPrompt = (
   isCriticalMode: boolean = true
 ): string => {
   const analysisApproach = isCriticalMode 
-    ? `**CRITICAL ANALYSIS MODE:**
-You should be thorough and look for genuine AI indicators such as:
-- Highly repetitive phrasing or formulaic sentence structures
-- Generic responses that lack specific context or personal insight
-- Perfect grammar with unnaturally consistent writing patterns
-- Template-like organization with predictable transitions
-- Absence of personal voice, colloquialisms, or natural imperfections
-- Responses that seem to follow AI training patterns or common AI phrases
+    ? `**CRITICAL ACADEMIC EVALUATION MODE:**
+You should thoroughly evaluate both AI detection AND academic quality:
 
-However, maintain accuracy by recognizing human elements:
-- Personal experiences, specific examples, or unique perspectives
-- Natural writing variations and minor imperfections
-- Genuine emotional expression or individual voice
-- Context-appropriate informal language
-- Creative insights that show original thinking`
-    : `**BALANCED ANALYSIS MODE:**
-You should look for clear evidence before making determinations:
-- Strong AI indicators: obvious templates, repetitive patterns, generic phrasing
-- Strong human indicators: personal anecdotes, unique perspectives, natural imperfections
-- Consider context: academic writing is naturally more formal
-- Give appropriate weight to writing quality vs. AI likelihood
-- Look for genuine creativity, specific examples, and personal voice
-- Consider that humans can write well-structured, polished content`;
+**AI Detection Criteria:**
+- Look for AI patterns: repetitive phrasing, formulaic structures, generic responses
+- Check for human indicators: personal voice, specific examples, natural imperfections
+- Assess originality vs template-like responses
+- Consider context-appropriate language and genuine understanding
+
+**Academic Quality Assessment:**
+- **Question Relevance**: Does the response directly address what was asked?
+- **Depth of Understanding**: Shows genuine comprehension vs superficial treatment
+- **Critical Thinking**: Evidence of analysis, evaluation, or synthesis
+- **Use of Examples**: Specific, relevant examples vs generic illustrations
+- **Academic Voice**: Appropriate tone and scholarly approach
+- **Organization**: Logical flow and structure appropriate for the question type
+
+**Quality Indicators:**
+- Good: Demonstrates understanding, addresses question, shows original thinking
+- Poor: Off-topic, superficial, lacks engagement with the question, purely generic`
+    : `**BALANCED ACADEMIC EVALUATION MODE:**
+You should provide fair assessment focusing on:
+
+**Primary Focus - Academic Merit:**
+- How well does the response answer the specific question asked?
+- Does it show genuine understanding of the topic?
+- Is there evidence of personal engagement with the material?
+- Are examples and explanations appropriate and relevant?
+
+**Secondary Focus - Authenticity:**
+- Clear AI indicators: obvious templates, repetitive patterns, generic phrasing
+- Human indicators: personal insights, specific examples, natural voice
+- Give benefit of doubt when writing quality could reflect student ability
+
+**Evaluation Standards:**
+- Recognize that good student writing can be well-structured and polished
+- Focus on substance over style unless style clearly indicates AI generation
+- Consider question complexity when evaluating response depth`;
 
   return `
-You are analyzing this text response with ${isCriticalMode ? 'thorough critical' : 'balanced objective'} standards.
+You are evaluating a student's written response with ${isCriticalMode ? 'rigorous academic standards' : 'balanced academic assessment'}.
 
-**Question/Prompt:**
+**QUESTION/ASSIGNMENT:**
 ${question}
 
-**Answer Text to Analyze:**
+**STUDENT RESPONSE:**
 ${answerText}
 
-${judgingCriteria ? `**Judging Criteria:**\n${judgingCriteria}\n` : ''}
+${judgingCriteria ? `**GRADING CRITERIA:**\n${judgingCriteria}\n` : ''}
 
 ${analysisApproach}
 
+**EVALUATION FRAMEWORK:**
+
+1. **Content Quality Assessment:**
+   - Does the response directly address the question asked?
+   - Is there evidence of genuine understanding vs mere information regurgitation?
+   - Are arguments well-supported with appropriate examples?
+   - Does it show critical thinking and original analysis?
+
+2. **Academic Writing Evaluation:**
+   - Is the writing style appropriate for the academic level?
+   - Is the organization logical and coherent?
+   - Does it demonstrate subject knowledge and vocabulary?
+   - Are sources or examples used effectively?
+
+3. **Authenticity Indicators:**
+   - Human: Personal insights, specific examples, natural voice variations, contextual understanding
+   - AI: Generic responses, formulaic patterns, template-like structure, lack of personal engagement
+
 **CALIBRATION GUIDELINES:**
-- ${isCriticalMode ? 'Critical mode: Be thorough but accurate. Look for multiple indicators before assigning high AI probability.' : 'Balanced mode: Require clear evidence for high AI probability scores. Give benefit of doubt when uncertain.'}
-- Only assign 70%+ AI probability when there are strong, multiple indicators
-- ${isCriticalMode ? 'Most human academic writing should score 35-65% depending on quality and style' : 'Most human content should score 20-45% unless there are clear AI patterns'}
-- Personal anecdotes, specific examples, and unique insights strongly suggest human authorship
-- Generic, formulaic, or template-like responses suggest AI generation
-- Consider writing context - academic papers are naturally more formal
+- ${isCriticalMode ? 'Balance AI detection with academic merit - a poor response is not necessarily AI-generated' : 'Prioritize academic quality assessment - focus on learning demonstration'}
+- Consider question complexity when evaluating response depth
+- ${isCriticalMode ? 'Most genuine student work should score 25-65% AI probability depending on quality' : 'Most authentic student work should score 15-45% AI probability'}
+- High-quality human responses with good structure should not automatically indicate AI generation
+- Poor responses may still be human if they show genuine effort and understanding
 
 **MANDATORY OUTPUT FORMAT:**
 Return your analysis in this exact JSON format with NO additional text:
@@ -119,32 +151,23 @@ Return your analysis in this exact JSON format with NO additional text:
   "writingApproach": "<EXACTLY ONE OF: Chronological, Problem-Solution, Compare-Contrast, Inductive, Deductive, Stream of Consciousness, Fragmented>",
   "competenceLevel": "<EXACTLY ONE OF: Basic, Intermediate, Advanced, Expert, Formulaic>",
   "authorLikelihood": "<EXACTLY: Human OR AI>",
-  "comments": "<detailed analysis explaining your reasoning with specific examples>"
+  "comments": "<detailed analysis covering: 1) How well the response addresses the question, 2) Academic quality and depth, 3) Evidence for AI vs human authorship, 4) Overall assessment of student work quality>"
 }
 
-**CLASSIFICATION REQUIREMENTS:**
+**DETAILED REQUIREMENTS:**
 
 1. **AI Probability (0-100%)**: 
-   ${isCriticalMode 
-     ? 'Base assessment on genuine indicators. Most human content should score 30-70% based on writing patterns.' 
-     : 'Require clear evidence for high scores. Most human content should score 15-50% unless obviously AI-generated.'}
+   Base on combination of AI detection indicators AND academic authenticity
+   - Consider both writing patterns and genuine engagement with the question
+   - ${isCriticalMode ? 'Score 25-65% for most authentic student work' : 'Score 15-45% for most genuine responses'}
 
-2. **Writing Style**: Choose the DOMINANT style from the list
+2. **Comments Structure**: Must address:
+   - Question relevance and how well the response answers what was asked
+   - Academic quality: depth, understanding, examples, critical thinking
+   - Authenticity indicators: human vs AI characteristics observed
+   - Overall evaluation of the student work (good/poor and why)
 
-3. **Writing Approach**: Choose the PRIMARY organizational method from the list
-
-4. **Competence Level**: 
-   - Basic: Simple vocabulary, basic structure, errors
-   - Intermediate: Good structure, varied vocabulary
-   - Advanced: Sophisticated language, complex ideas
-   - Expert: Exceptional skill, nuanced understanding
-   - Formulaic: Following obvious templates, AI-like patterns
-
-5. **Author Likelihood**: 
-   - Human: Personal voice, specific examples, natural variations, creative insights
-   - AI: Generic responses, formulaic patterns, template-like structure
-
-6. **Comments**: Provide specific examples and clear reasoning for your assessment
+3. **Academic Context**: Remember this is student work - evaluate appropriately for educational setting
 
 Return ONLY the JSON object. No markdown formatting, no additional text.
 `;
